@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, render_template, request, jsonify
 import requests
 import json
@@ -6,11 +5,11 @@ import base64
 import os
 from datetime import datetime
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../templates')
 app.secret_key = os.environ.get('SECRET_KEY', 'void-super-secret-key-2026')
 
 # ============================================================
-# 🔥 ALL API ENDPOINTS CONFIGURATION
+# 🔥 ALL API ENDPOINTS (SAME AS BEFORE)
 # ============================================================
 
 GARENA = {
@@ -23,21 +22,16 @@ GARENA = {
     "user_agent": "GarenaMSDK/4.0.30(Redmi Note 5;Android 9;en;US;)",
     
     "endpoints": {
-        # Major Login System
         "major_login": "/MajorLogin",
         "major_register": "/MajorRegister",
         "get_login_data": "/GetLoginData",
         "choose_region": "/ChooseRegion",
         "change_nickname": "/MajorModifyNickname",
-        
-        # OAuth & Token
         "eat_token": "/support/callback/",
         "token_inspect": "/oauth/token/inspect",
         "revoke_token": "/oauth/logout",
         "grant_guest": "/api/v2/oauth/guest/token:grant",
         "register_guest": "/api/v2/oauth/guest/token:register",
-        
-        # Bind Operations
         "get_bind_info": "/game/account_security/bind:get_bind_info",
         "send_otp": "/game/account_security/bind:send_otp",
         "verify_otp": "/game/account_security/bind:verify_otp",
@@ -46,17 +40,12 @@ GARENA = {
         "create_unbind": "/game/account_security/bind:create_unbind_request",
         "verify_identity": "/game/account_security/bind:verify_identity",
         "cancel_request": "/game/account_security/bind:cancel_request",
-        
-        # Platform & Account
         "platform_info": "/bind/app/platform/info/get",
         "login_data_from_token": "/oauth/account:login",
-        
-        # TopUp
         "topup_info": "/api/msdk/v2/info/pricing",
     }
 }
 
-# Social Auth URLs (Eat Token)
 SOCIAL_AUTH = {
     "google": "https://auth.garena.com/universal/oauth?platform=8&response_type=code&locale=en-SG&client_id=100067&redirect_uri=https://api.ff.garena.co.id/auth/auth/callback_n?site=https://api-discountstore.kiosgamer.gameid.garena.co.id/oauth/callback_redirect/",
     "facebook": "https://auth.garena.com/universal/oauth?platform=3&response_type=code&locale=en-SG&client_id=100067&redirect_uri=https://api.ff.garena.co.id/auth/auth/callback_n?site=https://api-discountstore.kiosgamer.gameid.garena.co.id/oauth/callback_redirect/",
@@ -71,7 +60,6 @@ SOCIAL_AUTH = {
 # ============================================================
 
 def garena_request(endpoint, method='GET', params=None, data=None, headers=None, base=None):
-    """Make Garena API request"""
     if base is None:
         base = GARENA['base_url']
     url = base + endpoint
@@ -95,7 +83,6 @@ def garena_request(endpoint, method='GET', params=None, data=None, headers=None,
         return {'success': False, 'error': str(e)}
 
 def decode_jwt_full(token):
-    """Decode JWT and extract all info"""
     try:
         parts = token.split('.')
         if len(parts) < 3:
@@ -135,14 +122,15 @@ def decode_jwt_full(token):
         return {'error': str(e)}
 
 # ============================================================
-# API ROUTES - ALL 28+ ENDPOINTS
+# API ROUTES
 # ============================================================
 
-# --- MAJOR LOGIN SYSTEM ---
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 @app.route('/api/major-login', methods=['POST'])
 def major_login():
-    """Login with username/password"""
     username = request.json.get('username', '').strip()
     password = request.json.get('password', '').strip()
     if not username or not password:
@@ -161,7 +149,6 @@ def major_login():
 
 @app.route('/api/major-register', methods=['POST'])
 def major_register():
-    """Register new account"""
     username = request.json.get('username', '').strip()
     password = request.json.get('password', '').strip()
     email = request.json.get('email', '').strip()
@@ -185,7 +172,6 @@ def major_register():
 
 @app.route('/api/get-login-data', methods=['POST'])
 def get_login_data():
-    """Get login data from token"""
     token = request.json.get('token', '').strip()
     if not token:
         return jsonify({'success': False, 'error': 'Token required'}), 400
@@ -203,7 +189,6 @@ def get_login_data():
 
 @app.route('/api/choose-region', methods=['POST'])
 def choose_region():
-    """Choose region for account"""
     token = request.json.get('token', '').strip()
     region = request.json.get('region', 'PK').strip()
     if not token:
@@ -222,7 +207,6 @@ def choose_region():
 
 @app.route('/api/change-nickname', methods=['POST'])
 def change_nickname():
-    """Change account nickname"""
     token = request.json.get('token', '').strip()
     nickname = request.json.get('nickname', '').strip()
     if not token or not nickname:
@@ -239,11 +223,8 @@ def change_nickname():
         return jsonify({'success': True, 'data': result.get('data', {})})
     return jsonify({'success': False, 'error': result.get('error', 'Failed to change nickname')}), 500
 
-# --- EAT TOKEN (Social Auth) ---
-
 @app.route('/api/eat-token', methods=['POST'])
 def eat_token():
-    """Consume social auth token"""
     token = request.json.get('token', '').strip()
     platform = request.json.get('platform', 'google').strip().lower()
     if not token:
@@ -271,10 +252,7 @@ def eat_token():
 
 @app.route('/api/social-auth-urls', methods=['GET'])
 def social_auth_urls():
-    """Get all social auth URLs"""
     return jsonify({'success': True, 'urls': SOCIAL_AUTH})
-
-# --- BIND OPERATIONS ---
 
 @app.route('/api/get-bind-info', methods=['POST'])
 def get_bind_info():
@@ -464,8 +442,6 @@ def cancel_request():
             return jsonify({'success': True, 'message': 'Request cancelled'})
     return jsonify({'success': False, 'error': 'Cancellation failed'}), 500
 
-# --- TOKEN OPERATIONS ---
-
 @app.route('/api/decode-token', methods=['POST'])
 def decode_token():
     token = request.json.get('token', '').strip()
@@ -538,8 +514,6 @@ def register_guest():
         return jsonify({'success': True, 'data': result.get('data', {})})
     return jsonify({'success': False, 'error': result.get('error', 'Guest registration failed')}), 500
 
-# --- PLATFORM INFO ---
-
 @app.route('/api/platform-info', methods=['POST'])
 def platform_info():
     token = request.json.get('token', '').strip()
@@ -574,8 +548,6 @@ def login_data_from_token():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# --- TOPUP ---
-
 @app.route('/api/topup-info', methods=['POST'])
 def topup_info():
     token = request.json.get('token', '').strip()
@@ -593,14 +565,5 @@ def topup_info():
         return jsonify({'success': True, 'data': result.get('data', {})})
     return jsonify({'success': False, 'error': result.get('error', 'Failed to get topup info')}), 500
 
-# ============================================================
-# MAIN
-# ============================================================
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=False)
+# For Vercel - expose the app
+app.debug = False
